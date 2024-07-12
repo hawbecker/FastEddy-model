@@ -38,6 +38,23 @@ Input parameters
 Execute FastEddy
 ----------------
 
-Note that this example requires customization of the initial condition file. The first step consists in runnig for 1 timestep to create the *FE_DISPERSION.0* file. After that, exectue the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep1.ipynb** to create the topography file *Topography_504x498.dat*. Run again for 1 timestep but pointing to the generated binary file containing the terrain information in the parameter file (:code:`topoPos`). This will create a new initial file *FE_DISPERSION.0* that contains the toography and with the terrain-following vertical grid correspondingly adjusted. Then, exectute the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep2.ipynb** to modify the surface roughness distribution over some portion of the hill. Execute the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep3.ipynb** to create the input file required for the source specification. Now, point to the modified initial condition file (:code:`inPath`, :code:`inFile`) and the generated passive tracer source file (:code:`srcAuxScFile`, release starts :math:`45` min into the simulation) and run FastEddy for the :math:`1` h of the simulation by changing :code:`frqOutput`, :code:`Nt`, and :code:`NtBatch` back to their original values. Two FastEddy simulation setup are provided for this tutorial, corresponding to weakly stable and convective conditions. The initial condition and terrain preparation stepts only need to be carried out once, then reused to run the other stability case.
+Note that this example requires customization of the initial condition file. The first step consists in runnig for 1 timestep to create the *FE_DISPERSION.0* file. After that, exectue the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep1.ipynb** to create the topography file *Topography_504x498.dat*. Run again for 1 timestep but pointing to the generated binary file containing the terrain information in the FastEddy parameter file (:code:`topoPos`). This will create a new initial file *FE_DISPERSION.0* that contains the toography and with the terrain-following vertical grid correspondingly adjusted. Then, exectute the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep2.ipynb** to modify the surface roughness distribution over some portion of the hill. Execute the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep3.ipynb** to create the input file required for the source specification. Now, point to the modified initial condition file (:code:`inPath`, :code:`inFile`) and the generated passive tracer source file (:code:`srcAuxScFile`, release starts :math:`45` min into the simulation) and run FastEddy for the :math:`1` h of the simulation by changing :code:`frqOutput`, :code:`Nt`, and :code:`NtBatch` back to their original values. Two FastEddy simulation setup are provided for this tutorial, corresponding to weakly stable (*Example07_DISPERSION_SBL.in*) and convective conditions (*Example07_DISPERSION_CBL.in*). The initial condition and terrain preparation stepts only need to be carried out once, then reused to run the other stability case.
 
 See :ref:`run_fasteddy` for instructions on how to build and run FastEddy on NSF NCAR's High Performance Computing machines.
+
+Visualize the output
+--------------------
+
+Open the Jupyter notebook entitled *MAKE_FE_TUTORIAL_PLOTS.ipynb* and execute it using setting: :code:`case = 'dispersion'`.
+
+XY-plane views of instantaneous velocity components and potential temperature for the SBL case at :math:`t=1` h (FE_DISPERSION.360000):
+
+.. image:: ../images/UVWTHETA-XY-dispersion_SBL.png
+  :width: 1200
+  :alt: Alternative text
+
+XY-plane views of instantaneous velocity components and potential temperature for the CBL case at :math:`t=1` h (FE_DISPERSION.360000):
+
+.. image:: ../images/UVWTHETA-XY-dispersion_CBL.png
+  :width: 1200
+  :alt: Alternative text
