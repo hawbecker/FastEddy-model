@@ -60,21 +60,25 @@ XY-plane views of instantaneous velocity components and potential temperature fo
   :alt: Alternative text
 
 XY-plane views of instantaneous plume dispersion for the SBL case at :math:`z=30` m AGL and different times (:math:`t=50,55,60` min), corresponding to the windward release:
+
 .. image:: ../images/CONCENTRATION-XY-dispersion_SBL.png
   :width: 1200
   :alt: Alternative text
 
 XY-plane views of instantaneous plume dispersion for the CBL case at :math:`z=30` m AGL and different times (:math:`t=50,55,60` min), corresponding to the windward release:
+
 .. image:: ../images/CONCENTRATION-XY-dispersion_CBL.png
   :width: 1200
   :alt: Alternative text
 
 YZ-plane views of instantaneous plume dispersion for the SBL case at several downstream distances (:math:`t=1` h, FE_DISPERSION.360000), corresponding to the windward release:
+
 .. image:: ../images/CONCENTRATION-YZ-dispersion_SBL.png
   :width: 1200
   :alt: Alternative text
 
 YZ-plane views of instantaneous plume dispersion for the CBL case at several downstream distances (:math:`t=1` h, FE_DISPERSION.360000), corresponding to the windward release:
+
 .. image:: ../images/CONCENTRATION-YZ-dispersion_CBL.png
   :width: 1200
   :alt: Alternative text
