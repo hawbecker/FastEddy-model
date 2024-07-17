@@ -47,14 +47,41 @@ Visualize the output
 
 Open the Jupyter notebook entitled *MAKE_FE_TUTORIAL_PLOTS.ipynb* and execute it using setting: :code:`case = 'dispersion'`.
 
-XY-plane views of instantaneous velocity components and potential temperature for the SBL case at :math:`t=1` h (FE_DISPERSION.360000):
+XY-plane views of instantaneous velocity components and potential temperature for the SBL case at :math:`t=1` h (FE_DISPERSION.360000). The contour lines in the :math:`u` panel display terrain elevation:
 
 .. image:: ../images/UVWTHETA-XY-dispersion_SBL.png
   :width: 1200
   :alt: Alternative text
 
-XY-plane views of instantaneous velocity components and potential temperature for the CBL case at :math:`t=1` h (FE_DISPERSION.360000):
+XY-plane views of instantaneous velocity components and potential temperature for the CBL case at :math:`t=1` h (FE_DISPERSION.360000). The contour lines in the :math:`u` panel display terrain elevation:
 
 .. image:: ../images/UVWTHETA-XY-dispersion_CBL.png
   :width: 1200
   :alt: Alternative text
+
+XY-plane views of instantaneous plume dispersion for the SBL case at :math:`z=30` m AGL and different times (:math:`t=50,55,60` min), corresponding to the windward release:
+.. image:: ../images/CONCENTRATION-XY-dispersion_SBL.png
+  :width: 1200
+  :alt: Alternative text
+
+XY-plane views of instantaneous plume dispersion for the CBL case at :math:`z=30` m AGL and different times (:math:`t=50,55,60` min), corresponding to the windward release:
+.. image:: ../images/CONCENTRATION-XY-dispersion_CBL.png
+  :width: 1200
+  :alt: Alternative text
+
+YZ-plane views of instantaneous plume dispersion for the SBL case at several downstream distances (:math:`t=1` h, FE_DISPERSION.360000), corresponding to the windward release:
+.. image:: ../images/CONCENTRATION-YZ-dispersion_SBL.png
+  :width: 1200
+  :alt: Alternative text
+
+YZ-plane views of instantaneous plume dispersion for the CBL case at several downstream distances (:math:`t=1` h, FE_DISPERSION.360000), corresponding to the windward release:
+.. image:: ../images/CONCENTRATION-YZ-dispersion_CBL.png
+  :width: 1200
+  :alt: Alternative text
+
+Analyze the output
+------------------
+
+* How does the terrain impact gets altered by the different stability conditions?
+* What are the differences in plume dispersion between stable and convective condtions?
+* How does downstream distance affect structure of the plume?
