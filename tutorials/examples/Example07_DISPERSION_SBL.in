@@ -1,17 +1,17 @@
 Description = This is an idealized SBL over terrain with T&D of a passive scalar.
 #--MPI_AALES
-numProcsX = 8 # 4 # Number of cores to be used for horizontal domain decomposition in X
+numProcsX = 4 #8 # 4 # Number of cores to be used for horizontal domain decomposition in X
 numProcsY = 1 # Number of cores to be used for horizontal domain decomposition in Y
 #--CUDA_AALES
 tBx = 1 # Number of threads in x-dimension
 tBy = 8 # Number of threads in y-dimension
 tBz = 32 # Number of threads in z-dimension
 #--IO
-inPath = ./initial/ # Path where initial/restart file is read in from
-inFile = FE_DISPERSION.0 # name of the input file for coordinate system and initial or restart conditions
+inPath = #./initial/ # Path where initial/restart file is read in from
+inFile = #FE_DISPERSION.0 # name of the input file for coordinate system and initial or restart conditions
 outPath = ./output/ # ./output/ # Path where output files are to be written
 outFileBase = FE_DISPERSION # Base name of the output file series as in (outFileBase).element-in-series
-frqOutput = 30000 # frequency (in timesteps) at which to produce output
+frqOutput = 1 #30000 # frequency (in timesteps) at which to produce output
 ioOutputMode = 0 # 0: N-to-1 gather and write to a netcdf file, 1:N-to-N writes of FastEddy binary files
 #--GRID
 Nx = 504 # 500 # Number of discretised domain elements in the x (zonal) direction
@@ -28,9 +28,9 @@ verticalDeformFactor = 0.26 # deformation factor (0.0=max compression,  1.0=no c
 verticalDeformQuadCoeff = 0.0 # deformation factor (0.0=max compression,  1.0=no compression)
 #--TIME_INTEGRATION
 timeMethod = 0 # Selector for time integration method. [0=RK3-WS2002 (default)]
-Nt = 360000 # Number of timesteps to perform
+Nt = 1 #360000 # Number of timesteps to perform
 dt = 0.01 # timestep resolution in seconds
-NtBatch = 30000 # Number of timesteps to compute in batch launch, must have NtBatch <= Nt
+NtBatch = 1 #30000 # Number of timesteps to compute in batch launch, must have NtBatch <= Nt
 #--HYDRO_CORE
 ##------------: HYDRO_CORE Submodule Selectors ---
 #----------: Boundary Conditions Set ---
@@ -72,12 +72,12 @@ canopy_lf = 0.1 # representative canopy element length scale
 diffusionSelector = 0 # diffusivity selector: 0= none, 1= const.
 nu_0 = 0.0 # constant diffusivity used when diffusionSelector = 1
 ##----------: AUXILIARY SCALARS ---
-NhydroAuxScalars = 2 # Number of prognostic auxiliary scalar fields
+NhydroAuxScalars = 0 #2 # Number of prognostic auxiliary scalar fields
 AuxScAdvSelector = 0 # advection scheme for auxiliary scalar fields
 AuxScAdvSelector_b_hyb = 0.0
 AuxScSGSturb = 1 # selector to apply sub-grid scale diffusion to auxiliary scalar fields
 ## ----------: AUXILIARY SCALAR SOURCES ---
-srcAuxScFile=./Example07_sources.nc
+srcAuxScFile= #./Example07_sources.nc
 ##------------: EXPLICIT FILTERS ---
 filterSelector = 1 # explicit filter selector: 0=off, 1=on
 filter_6thdiff_vert = 1
