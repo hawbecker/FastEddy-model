@@ -38,16 +38,16 @@ Input parameters
 Execute FastEddy
 ----------------
 
-Note that this example requires customization of the initial condition file. Follow the sequence of step below.
+Note that this example requires customization of the initial condition file. Follow the sequence of steps below.
 
 #. Exectue the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep1.ipynb** to create the topography file *Topography_504x498.dat*. 
-#. Run FastEddy for 1 timestep using the default state of the (*Example07_DISPERSION_SBL.in*) and requires the binary terrain file generated in the previous step to be specified through the FastEddy parameter file (:code:`topoFile`). This step creates an output file *FE_DISPERSION.0* that includes the topography and terrain-following vertical coordinate grid. 
+#. Run FastEddy for 1 timestep using the default state of the (*Example07_DISPERSION_SBL.in*) and required binary terrain file generated in the previous step, specified as input through the FastEddy parameter file (:code:`topoFile`). This step creates an output file *FE_DISPERSION.0* that includes the topography and establishes a terrain-following vertical coordinate grid. 
 #. Exectute the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep2.ipynb** to modify the surface roughness distribution over the hill. 
 #. Execute the Jupyer notebook provided in **/tutorial/notebooks/Dispersion_Prep3.ipynb** to create the source specification input file. 
 #. Adjust the (*Example07_DISPERSION_SBL.in*) file to specify the targeted initial condition file (:code:`inPath`, :code:`inFile`) by removing the (:code:`#`) just to the right of the equal sign ito uncomment these parameters values. Uncomment the pre-formed passive tracer source file (:code:`srcAuxScFile`). Remove the value of :math:`0` and uncomment the value of :math:`2` for the number of source emissions (:code:`NhydroAuxScalars`).
 #. Run FastEddy for :math:`1` h of the simulation by changing :code:`frqOutput`, :code:`Nt`, and :code:`NtBatch` removing the values of :math:`1` for each and the (:code:`#`) to uncomment appropriate full-simulation parameters values. The emissions begin :math:`45` min into the simulation.  
    
-Two FastEddy simulation setups are provided for this tutorial, corresponding to weakly stable (*Example07_DISPERSION_SBL.in*) and convective conditions (*Example07_DISPERSION_CBL.in*). The initial condition and terrain preparation stepts only need to be carried out once, then reused to run the other stability case.
+Two FastEddy simulation setups are provided for this tutorial, corresponding to weakly stable (*Example07_DISPERSION_SBL.in*) and convective conditions (*Example07_DISPERSION_CBL.in*). The initial condition and terrain preparation steps only need to be carried out once for the stable case, then can be reused directly in the convective stability case.
 
 See :ref:`run_fasteddy` for instructions on how to build and run FastEddy on NSF NCAR's High Performance Computing machines.
 
