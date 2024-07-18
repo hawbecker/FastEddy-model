@@ -94,6 +94,57 @@ def compute_mean_profiles(FE_xr):
     
     return array_out
 
+def extractListedParamsFromFile(file, paramsList):
+    # open the sample file used 
+    file = open('/glade/derecho/scratch/jsauer/FE-model/Test/AuxSc/Example07_DISPERSION_releases.in') 
+  
+    # read the content of the file opened 
+    content = file.readlines() 
+
+    #search each line for any of the parameters requested
+    paramsDict={}
+    for line in content:
+        for param in paramsList:
+            if param in line:
+                # The following should extract the non-comment protion to the 
+                # right of the equal sign in every "name = value" line of the file
+                s=line.split('=',maxsplit = 1)[-1].split('#',maxsplit = 1)[0].replace(" ", "")
+                #print(s, s.replace('.','',1).replace(" ", ""), s.replace('.','',1).replace(" ", "").isdigit())
+                if s.replace('.','',1).isdigit():
+                    #print(s)
+                    if '.' in s: #assume a float
+                        paramsDict[param]=float(s)
+                    else: #assume an integer
+                        paramsDict[param]=int(s)
+                else: #leave as string
+                    paramsDict[param]=line.split('=',maxsplit = 1)[-1].split('#',maxsplit = 1)[0].rstrip()
+    return paramsDict
+    
+def extractParamsFromFile(file):
+    # open the sample file used 
+    file = open('/glade/derecho/scratch/jsauer/FE-model/Test/AuxSc/Example07_DISPERSION_releases.in') 
+  
+    # read the content of the file opened 
+    content = file.readlines() 
+
+    #search each line for any of the parameters requested
+    paramsDict={}
+    for line in content:
+        param = line.split('=',maxsplit = 1)[0].replace(" ", "")
+        if "#" not in param and param != "":
+            # The following should extract the non-comment protion to the 
+            # right of the equal sign in every "name = value" line of the file
+            s=line.split('=',maxsplit = 1)[-1].split('#',maxsplit = 1)[0].replace(" ", "")
+            if s.replace('.','',1).isdigit():
+                #print(s)
+                if '.' in s: #assume a float
+                    paramsDict[param]=float(s)
+                else: #assume an integer
+                    paramsDict[param]=int(s)
+            else: #leave as string
+                paramsDict[param]=line.split('=',maxsplit = 1)[-1].split('#',maxsplit = 1)[0].rstrip()
+    return paramsDict
+
 def plot_XY_UVWTHETA(case, case_open, zChoose, save_plot_opt, path_figure, plot_qv_cont, plot_u_map):
 
     zVect = case_open.zPos.isel(time=0).values
