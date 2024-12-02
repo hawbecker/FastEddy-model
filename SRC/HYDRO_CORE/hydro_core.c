@@ -227,6 +227,7 @@ float V_g;            /*Meridional (South-North)  component of the geostrophic w
 float z_Ug,z_Vg;
 float Ug_grad,Vg_grad;
 int thetaPerturbationSwitch; /* Initial theta perturbations switch: 0=off, 1=on*/
+int thetaPerturbationRandSeed; /* random seed for perturbation: any integer*/
 float thetaHeight; /* Initial theta perturbations maximum height*/
 float thetaAmplitude; /* Initial theta perturbation (maximum amplitude in K)*/
 
@@ -534,6 +535,8 @@ int hydro_coreGetParams(){
    errorCode = queryFloatParameter("Vg_grad", &Vg_grad, -1e2, 1e2, PARAM_MANDATORY);
    thetaPerturbationSwitch = 0; //Default to initial theta perturbations off
    errorCode = queryIntegerParameter("thetaPerturbationSwitch", &thetaPerturbationSwitch, 0, 1, PARAM_MANDATORY);
+   thetaPerturbationRandSeed = 0; //Default to initial theta perturbations off
+   errorCode = queryIntegerParameter("thetaPerturbationRandSeed", &thetaPerturbationRandSeed, 0, 99999999, PARAM_MANDATORY);
    thetaHeight = 0.0; //Default to 0.0 meters for initial theta perturbation maximum height
    errorCode = queryFloatParameter("thetaHeight", &thetaHeight, 0.0, FLT_MAX, PARAM_MANDATORY);
    thetaAmplitude = 0.0; //Default to +- K for initial theta perturbation maximum height
@@ -717,6 +720,7 @@ int hydro_coreInit(){
       printParameter("Ug_grad", "U_g gradient above z_Ug (ms-1/m).");
       printParameter("Vg_grad", "V_g gradient above z_Vg (ms-1/m).");
       printParameter("thetaPerturbationSwitch", "Switch to include initial theta perturbations: 0=off, 1=on");
+      printParameter("thetaPerturbationRandSeed", "Random seed for perturbation: any integer");
       printParameter("thetaHeight", "Height below which to include initial theta perturbations: (meters)");
       printParameter("thetaAmplitude", "Maximum amplitude for theta perturbations: thetaAmplitude*[-1,+1] K");
       printParameter("physics_oneRKonly", "selector to apply physics RHS forcing only at the latest RK stage: 0= off, 1= on");
@@ -878,6 +882,7 @@ int hydro_coreInit(){
    MPI_Bcast(&Ug_grad, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&Vg_grad, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&thetaPerturbationSwitch, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   MPI_Bcast(&thetaPerturbationRandSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&thetaHeight, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&thetaAmplitude, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&physics_oneRKonly, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1532,6 +1537,7 @@ int hydro_coreSetBaseState(){
      }//end if-else iFld==0   
 // Introduce theta perturbation to accelerate spinup?
      if(thetaPerturbationSwitch == 1){
+       srand(mpi_rank_world+thetaPerturbationRandSeed);
        rhoBase = &hydroFlds[RHO_INDX*fldStride];
        fldBase = &hydroFlds[THETA_INDX*fldStride];
        for(i=iMin; i < iMax; i++){

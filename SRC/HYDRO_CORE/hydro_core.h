@@ -218,6 +218,7 @@ extern float V_g;            /*Meridional (South-North)  component of the geostr
 extern float z_Ug,z_Vg;
 extern float Ug_grad,Vg_grad;
 extern int thetaPerturbationSwitch; /* Initial theta perturbations switch: 0=off, 1=on*/
+extern int thetaPerturbationRandSeed; /* random seed for perturbation: any integer*/
 extern float thetaPerturbationHeight; /* Initial theta perturbations maximum height*/
 extern float thetaPerturbationAmplitude; /* Initial theta perturbations maximum amplitude*/
 
