@@ -30,7 +30,7 @@ extern "C" int cuda_canopyDeviceSetup(){
    if(canopySelector == 2){
      cudaMemcpyToSymbol(canopy_heat_flux_d, &canopy_heat_flux, sizeof(float));
      cudaMemcpyToSymbol(canopy_heat_flux_rate_d, &canopy_heat_flux_rate, sizeof(float));
-     printf("cudaDevice_canopyMomDrag():PSH - allocating LAI\n");
+     printf("cudaDevice_canopyMomDrag(): allocating LAI\n");
      fecuda_DeviceMalloc(Nelems*sizeof(float), &canopy_lai_d);
      cudaMemcpy(canopy_lai_d, canopy_lai, Nelems*sizeof(float), cudaMemcpyHostToDevice);
    }
@@ -48,7 +48,7 @@ extern "C" int cuda_canopyDeviceCleanup(){
    /* Free any CANOPY submodule arrays */
    cudaFree(canopy_lad_d);
    if(canopySelector == 2){
-     printf("cudaDevice_canopyMomDrag():PSH - freeing LAI\n" );
+     printf("cudaDevice_canopyMomDrag(): freeing LAI\n" );
      cudaFree(canopy_lai_d);
    }
 
@@ -67,7 +67,7 @@ __global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hy
                             &hydroFldsFrhs_d[fldStride*U_INDX], &hydroFldsFrhs_d[fldStride*V_INDX],
                             &hydroFldsFrhs_d[fldStride*W_INDX]);
 
-   if(canopySelector_d == 2){ // PSH
+   if(canopySelector_d == 2){ 
      cudaDevice_canopyHeatFlux(&canopy_lai_d[0],
                                &hydroFldsFrhs_d[fldStride*THETA_INDX],
                                dt,simTime_it);
@@ -97,7 +97,6 @@ __device__ void cudaDevice_canopyHeatFlux(float* lai, float* th_Frhs, float dt, 
     if(lai[ijk] > 0.0){
       canopy_q = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt) )*expf(-canopy_eta*(lai[ijk]));
       canopy_heat_rate = canopy_q * dZi_d;
-      //printf("PSH - %f %f %f\n",dZi_d, canopy_q, canopy_heat_rate);
       th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate;
     }
   }
