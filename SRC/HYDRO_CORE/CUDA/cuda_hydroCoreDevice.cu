@@ -467,8 +467,8 @@ extern "C" int cuda_hydroCoreDeviceBuildFrhs(float simTime, int simTime_it, int 
                                                                     hydroKappaM_d, dedxi_d, sgstke_ls_d,
                                                                     sgstkeScalars_d, sgstkeScalarsFrhs_d, canopy_lad_d,
                                                                     J31_d, J32_d, J33_d, D_Jac_d); //call to prognostic TKE equation
-       if (canopySelector==1){ // canopy drag term to forcing of momentum
-         cudaDevice_hydroCoreUnitTestCompleteCanopy<<<grid, tBlock>>>(hydroFlds_d, hydroRhoInv_d, canopy_lad_d, hydroFldsFrhs_d);
+       if (canopySelector>0){ // canopy drag term to forcing of momentum
+         cudaDevice_hydroCoreUnitTestCompleteCanopy<<<grid, tBlock>>>(hydroFlds_d, hydroRhoInv_d, canopy_lad_d, hydroFldsFrhs_d, canopy_lai_d, dt, simTime_it);
        }
      } // end if (turbSelector >0) && (TKESelector > 0)
      //Moist species microphysics forcings 

@@ -88,12 +88,12 @@ __global__ void cudaDevice_hydroCoreUnitTestCompleteSGSTKE(float* hydroFlds_d, f
                                        &dedxi_d[fldStride*(iFld*3+2)], &hydroFlds_d[fldStride*RHO_INDX],
                                        &sgstkeScalarsFrhs_d[fldStride*iFld],
                                        J31_d, J32_d, J33_d); // turbulent transport term
-         if(canopySelector_d==1){ // 1-eq SGSTKE with canopy model
+         if(canopySelector_d>0){ // 1-eq SGSTKE with canopy model
             cudaDevice_canopySGSTKEtransfer(&hydroRhoInv_d[0], &hydroFlds_d[fldStride*U_INDX], &hydroFlds_d[fldStride*V_INDX],
                                             &hydroFlds_d[fldStride*W_INDX], &canopy_lad_d[0],
                                             &sgstkeScalars_d[fldStride*iFld], &sgstkeScalarsFrhs_d[fldStride*iFld], -1.0); // transfer to wake scale
          }
-      }else if((iFld==1)&&(canopySelector_d==1)&&(TKESelector_d==2)){ // 2-eq SGSTKE with canopy model (wake scale SGSTKE)
+      }else if((iFld==1)&&(canopySelector_d>0)&&(TKESelector_d==2)){ // 2-eq SGSTKE with canopy model (wake scale SGSTKE)
 	cudaDevice_sgstkeTurbTransport(&hydroKappaM_d[0], &dedxi_d[fldStride*(iFld*3+0)], &dedxi_d[fldStride*(iFld*3+1)],
                                        &dedxi_d[fldStride*(iFld*3+2)], &hydroFlds_d[fldStride*RHO_INDX],
                                        &sgstkeScalarsFrhs_d[fldStride*iFld],

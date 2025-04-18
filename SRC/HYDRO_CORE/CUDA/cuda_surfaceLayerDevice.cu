@@ -212,6 +212,7 @@ __device__ void cudaDevice_SurfaceLayerLSMdry(float simTime, int simTime_it, int
        }else{ // linear evolution
          // temperature
          tsk_p = *tskin;
+         // printf("PSH in SL= {%8.5f, %8.5f, %8.5f, %8.5f}\n",surflayer_tr_d,dt,temp_freq_f,surflayer_tr_d*dt*temp_freq_f/3600.0);
          tsk_c = tsk_p+surflayer_tr_d*dt*temp_freq_f/3600.0; // surflayer_tr_d < 0 is cooling
          *tskin = tsk_c;
        }

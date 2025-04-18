@@ -134,7 +134,10 @@ extern int canopySelector;         /* canopy selector: 0=off, 1=on */
 extern int canopySkinOpt;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
 extern float canopy_cd;            /* non-dimensional canopy drag coefficient */
 extern float canopy_lf;            /* representative canopy element length scale */
+extern float canopy_heat_flux;     /* Heat flux coefficient for the canopy layer [K m s^{-1}] */
+extern float canopy_heat_flux_rate;/* Heat flux rate for the canopy layer [K s^{-1}] */
 extern float *canopy_lad;          /* Base Address of memory containing leaf area density (LAD) field [m^{-1}] */
+extern float *canopy_lai;          /* Base Address of memory containing leaf area index (LAI) field [-] */
 /*---LARGE SCALE FORCING*/ 
 extern int lsfSelector;         /* large-scale forcings selector: 0=off, 1=on */
 extern float lsf_w_surf;        /* lsf to w at the surface */

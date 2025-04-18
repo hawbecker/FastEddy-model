@@ -140,7 +140,10 @@ int canopySelector;         /* canopy selector: 0=off, 1=on */
 int canopySkinOpt;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
 float canopy_cd;            /* non-dimensional canopy drag coefficient cd coefficient */
 float canopy_lf;            /* representative canopy element length scale */
+float canopy_heat_flux;     /* Heat flux coefficient for the canopy layer [K m s^{-1}] */
+float canopy_heat_flux_rate;/* Heat flux rate for the canopy layer [K s^{-1}] */
 float *canopy_lad;          /* Base Address of memory containing leaf area density (LAD) field [m^{-1}] */
+float *canopy_lai;          /* Base Address of memory containing leaf area index (LAI) field [-] */
 
 /*Large-scale forcings parameters*/ 
 int lsfSelector;         /* large-scale forcings selector: 0=off, 1=on */
@@ -344,14 +347,18 @@ int hydro_coreGetParams(){
      }
    }
    canopySelector = 0; // Default to off
-   errorCode = queryIntegerParameter("canopySelector", &canopySelector, 0, 1, PARAM_OPTIONAL);
+   errorCode = queryIntegerParameter("canopySelector", &canopySelector, 0, 2, PARAM_OPTIONAL);
    canopySkinOpt = 0; // Default to off
    canopy_cd = 0.15; // Default to 0.15
    canopy_lf = 0.1; // Default to 0.1
+   canopy_heat_flux = 0.0; // Default to 0.0 PSH
+   canopy_heat_flux_rate = 0.0; // Default to 0.0 PSH
    if (canopySelector > 0){
      errorCode = queryIntegerParameter("canopySkinOpt", &canopySkinOpt, 0, 1, PARAM_MANDATORY);
      errorCode = queryFloatParameter("canopy_cd", &canopy_cd, 0.0, 1e+2, PARAM_MANDATORY);
      errorCode = queryFloatParameter("canopy_lf", &canopy_lf, 0.0, 1e+2, PARAM_MANDATORY);
+     errorCode = queryFloatParameter("canopy_heat_flux", &canopy_heat_flux, -1e+2, 1e+2, PARAM_OPTIONAL);
+     errorCode = queryFloatParameter("canopy_heat_flux_rate", &canopy_heat_flux_rate, -1e+2, 1e+2, PARAM_OPTIONAL);
    }
    //
    lsfSelector = 0; // Default to off 
@@ -628,6 +635,8 @@ int hydro_coreInit(){
         printParameter("canopySkinOpt", "canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on");
         printParameter("canopy_cd", "non-dimensional canopy drag coefficient when canopySelector > 0");
         printParameter("canopy_lf", "representative canopy element length scale when canopySelector > 0");
+        printParameter("canopy_heat_flux", "Heat flux coefficient for the canopy layer when canopySelector == 2");
+        printParameter("canopy_heat_flux_rate", "Heat flux rate for the canopy layer when canopySelector == 2");
       }
       printComment("----------: LARGE-SCALE FORCINGS MODEL ---");
       printParameter("lsfSelector", "large-scale forcings selector: 0= off, 1= on");
@@ -775,6 +784,8 @@ int hydro_coreInit(){
      MPI_Bcast(&canopySkinOpt, 1, MPI_INT, 0, MPI_COMM_WORLD);
      MPI_Bcast(&canopy_cd, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
      MPI_Bcast(&canopy_lf, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+     MPI_Bcast(&canopy_heat_flux, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+     MPI_Bcast(&canopy_heat_flux_rate, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    }
    MPI_Bcast(&lsfSelector, 1, MPI_INT, 0, MPI_COMM_WORLD);
    if (lsfSelector > 0){
@@ -1161,6 +1172,14 @@ int hydro_coreInit(){
      printf("canopy:Field = %s stored at %p, has been registered with IO.\n",
             &fldName[0],canopy_lad);
      fflush(stdout);
+     if(canopySelector == 2){
+       canopy_lai = memAllocateFloat3DField(Nxp, Nyp, Nzp, Nh, "canopy_lai");
+       errorCode = sprintf(&fldName[0],"CanopyLAI");
+       errorCode = ioRegisterVar(&fldName[0], "float", 4, dims4d, canopy_lai);
+       printf("canopy:Field = %s stored at %p, has been registered with IO.\n",
+              &fldName[0],canopy_lai);
+       fflush(stdout);
+     } // end of canopySelector == 2
    } // end of canopySelector > 0
 
    if(moistureSelector > 0){ 
@@ -2140,6 +2159,9 @@ int hydro_coreCleanup(){
    }//end if surface selector > 0
    if(canopySelector > 0){
      memReleaseFloat(canopy_lad);
+     if(canopySelector == 2){
+       memReleaseFloat(canopy_lai);
+     }
    }
    if(moistureSelector > 0){
      memReleaseFloat(moistScalars);

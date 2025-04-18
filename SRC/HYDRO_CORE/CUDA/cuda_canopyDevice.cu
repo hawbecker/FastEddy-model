@@ -3,7 +3,10 @@ __constant__ int canopySelector_d;         /* canopy selector: 0=off, 1=on */
 __constant__ int canopySkinOpt_d;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
 __constant__ float canopy_cd_d;            /* non-dimensional canopy drag coefficient cd coefficient */
 __constant__ float canopy_lf_d;            /* representative canopy element length scale */
+__constant__ float canopy_heat_flux_d;     /* Heat flux coefficient for the canopy layer */
+__constant__ float canopy_heat_flux_rate_d;/* Heat flux coefficient rate for the canopy layer */
 float *canopy_lad_d;          /* Base Address of memory containing leaf area density (LAD) field [m^{-1}] */
+float *canopy_lai_d;          /* Base Address of memory containing leaf area index (LAI) field [-] */
 
 /*#################------------ CANOPY submodule function definitions ------------------#############*/
 /*----->>>>> int cuda_canopyDeviceSetup();       ---------------------------------------------------------
@@ -24,6 +27,14 @@ extern "C" int cuda_canopyDeviceSetup(){
    fecuda_DeviceMalloc(Nelems*sizeof(float), &canopy_lad_d);
    cudaMemcpy(canopy_lad_d, canopy_lad, Nelems*sizeof(float), cudaMemcpyHostToDevice);
 
+   if(canopySelector == 2){
+     cudaMemcpyToSymbol(canopy_heat_flux_d, &canopy_heat_flux, sizeof(float));
+     cudaMemcpyToSymbol(canopy_heat_flux_rate_d, &canopy_heat_flux_rate, sizeof(float));
+     printf("cudaDevice_canopyMomDrag():PSH - allocating LAI\n");
+     fecuda_DeviceMalloc(Nelems*sizeof(float), &canopy_lai_d);
+     cudaMemcpy(canopy_lai_d, canopy_lai, Nelems*sizeof(float), cudaMemcpyHostToDevice);
+   }
+
    return(errorCode);
 } //end cuda_canopyDeviceSetup()
 
@@ -36,12 +47,16 @@ extern "C" int cuda_canopyDeviceCleanup(){
 
    /* Free any CANOPY submodule arrays */
    cudaFree(canopy_lad_d);
+   if(canopySelector == 2){
+     printf("cudaDevice_canopyMomDrag():PSH - freeing LAI\n" );
+     cudaFree(canopy_lai_d);
+   }
 
    return(errorCode);
 
 }//end cuda_canopyDeviceCleanup()
 
-__global__ void cudaDevice_hydroCoreUnitTestCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d){
+__global__ void cudaDevice_hydroCoreUnitTestCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d, float* canopy_lai_d, float dt, int simTime_it){
 
    int fldStride;
 
@@ -52,7 +67,41 @@ __global__ void cudaDevice_hydroCoreUnitTestCompleteCanopy(float* hydroFlds_d, f
                             &hydroFldsFrhs_d[fldStride*U_INDX], &hydroFldsFrhs_d[fldStride*V_INDX],
                             &hydroFldsFrhs_d[fldStride*W_INDX]);
 
+   if(canopySelector_d == 2){ // PSH
+     cudaDevice_canopyHeatFlux(&canopy_lai_d[0],
+                               &hydroFldsFrhs_d[fldStride*THETA_INDX],
+                               dt,simTime_it);
+   }
+
 } // end cudaDevice_hydroCoreUnitTestCompleteCanopy()
+
+/*----->>>>> __device__ void  cudaDevice_canopyHeatFlux();  --------------------------------------------------
+*/
+__device__ void cudaDevice_canopyHeatFlux(float* lai, float* th_Frhs, float dt, int simTime_it){
+
+  float canopy_eta = 0.6; // extinction coefficient of canopy heat flux
+  float canopy_q; // heat flux function of LAI 
+  float canopy_heat_rate; // this will be calculated
+  int i,j,k,ijk;
+  int iStride,jStride,kStride;
+
+  i = (blockIdx.x)*blockDim.x + threadIdx.x;
+  j = (blockIdx.y)*blockDim.y + threadIdx.y;
+  k = (blockIdx.z)*blockDim.z + threadIdx.z;
+  iStride = (Ny_d+2*Nh_d)*(Nz_d+2*Nh_d);
+  jStride = (Nz_d+2*Nh_d);
+  kStride = 1;
+  ijk = i*iStride + j*jStride + k*kStride;
+
+  if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d)){
+    if(lai[ijk] > 0.0){
+      canopy_q = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt) )*expf(-canopy_eta*(lai[ijk]));
+      canopy_heat_rate = canopy_q * dZi_d;
+      //printf("PSH - %f %f %f\n",dZi_d, canopy_q, canopy_heat_rate);
+      th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate;
+    }
+  }
+} //end cudaDevice_canopyHeatFlux
 
 /*----->>>>> __device__ void  cudaDevice_canopyMomDrag();  --------------------------------------------------
 */
