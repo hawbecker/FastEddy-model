@@ -56,7 +56,7 @@ extern "C" int cuda_canopyDeviceCleanup(){
 
 }//end cuda_canopyDeviceCleanup()
 
-__global__ void cudaDevice_hydroCoreUnitTestCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d, float* canopy_lai_d, float dt, int simTime_it){
+__global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d, float* canopy_lai_d, float dt, int simTime_it){
 
    int fldStride;
 
@@ -73,7 +73,7 @@ __global__ void cudaDevice_hydroCoreUnitTestCompleteCanopy(float* hydroFlds_d, f
                                dt,simTime_it);
    }
 
-} // end cudaDevice_hydroCoreUnitTestCompleteCanopy()
+} // end cudaDevice_hydroCoreCompleteCanopy()
 
 /*----->>>>> __device__ void  cudaDevice_canopyHeatFlux();  --------------------------------------------------
 */

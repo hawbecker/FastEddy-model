@@ -26,6 +26,7 @@ int dims4d[] = {0,1,2,3};
 int dims3d[] = {1,2,3};  
 int dims2dTD[] = {0,2,3};  
 int dims2d[] = {2,3}; 
+int dims1dTD[] = {0};  
 
 //////////***********************  INPUT FUNCTIONS  *********************************////////
 /*----->>>>> int ioReadNetCDFgridFile();  ---------------------------------------------------------------
@@ -246,6 +247,7 @@ int ioGetNetCDFinFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
    int nDims;
    int tmpDimids[MAXDIMS];
    int rhoMultSwitch=0;
+   int *intField;
 
    /* For each entry in the ioVarsList, "get" the var */
    ptr = getFirstVarFromList();
@@ -290,18 +292,22 @@ int ioGetNetCDFinFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
                 ERR(errorCode);
              }
              printf("Variable field = %s has nDims = %d\n",ptr->name,nDims);
+             fflush(stdout);
              if ((errorCode = nc_inq_vardimid(ncid, ptr->ncvarid, tmpDimids))){
                 ERR(errorCode);
              }
              for(i = 0; i< nDims; i++){
-               printf("Variable field = %s has dimid(%d) = %d\n",ptr->name,i,tmpDimids[i]);
+               //printf("Variable field = %s has dimid(%d) = %d\n",ptr->name,i,tmpDimids[i]);
+	       printf("Variable field = %s has dimid(%d) = %d: start, count => %lu, %lu\n",ptr->name,i,tmpDimids[i],start[tmpDimids[i]],countPtr[tmpDimids[i]]);
              }
+	     fflush(stdout);
              //Read in the field
              printf("Attempting for field = %s with start = %lu,%lu,%lu,%lu and count = %lu,%lu,%lu,%lu\n",
                     ptr->name,start[0],start[1],start[2],start[3],countPtr[0],countPtr[1],countPtr[2],countPtr[3]);
              if ((errorCode = nc_get_vara_float(ncid, ptr->ncvarid, start, countPtr, ioBuffField))){
                   ERR(errorCode);
              }
+	     fflush(stdout);
              /* Transpose the data */
              if((nDims == 2)||(nDims == 3)){
                for(i=0; i < Nx; i++){
@@ -333,8 +339,13 @@ int ioGetNetCDFinFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
            //Now scatter the field across ranks
            if((nDims == 2)||(nDims == 3)){
              errorCode = fempi_ScatterVariable(Nx,Ny,1,Nxp,Nyp,1,Nh,ioBuffFieldTransposed2D,field);
-           }else{
+           }else if(nDims == 4){
              errorCode = fempi_ScatterVariable(Nx,Ny,Nz,Nxp,Nyp,Nzp,Nh,ioBuffFieldTransposed,field);
+           }else if(nDims == 1){  // A scalar float variable was read, it shoud be simply broadcast to all ranks rather than "scattered"
+             if(mpi_rank_world==0){
+               *field=ioBuffField[0];
+             }
+             MPI_Bcast(field, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
            }//end if(nDims==2)-else
            //Now multiply by rho for flux conservative when appropriate for registered variable field...
 #define NORHO    //TODO define another attribute of the ioVarsList struictures that indicates whether the variable is "flux-conservative form"
@@ -376,6 +387,52 @@ int ioGetNetCDFinFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
            }//end if(nDims==2)-else
            MPI_Barrier(MPI_COMM_WORLD);
          } //end if varFound == 1
+      } else if(!strcmp(ptr->type,"int")){
+        intField = (int *) ptr->varMemAddress;  //All ranks set pointer to local memory location 
+        countPtr = count;
+        if(mpi_rank_world==0){
+         varFound = 0;
+         /*inquire for the varid for this variable name*/
+         printf("Next registered var in list to get is ptr->name = %s, from ptr->ncvarid = %d\n",ptr->name,ptr->ncvarid);
+         fflush(stdout);
+         if ( (errorCode = nc_inq_varid(ncid, ptr->name, &ptr->ncvarid)) ){
+           printf("Error ioGetNetCDFinFileVars(): Variable field = %s was not found in this file,!\n",ptr->name);
+           fflush(stdout);
+           ERR(errorCode);
+         }else{
+           varFound=1;
+         }
+
+         if(varFound==1){
+           /*read the variable */
+           printf("nc_get_vara() for  ptr->name = %s, from ptr-ncvarid = %d,\n into intField = 0x%p \n",ptr->name,ptr->ncvarid,(void *) intField);
+           fflush(stdout);
+           if ((errorCode = nc_inq_varndims(ncid, ptr->ncvarid, &nDims))){
+              ERR(errorCode);
+           }
+           printf("Variable field = %s has nDims = %d\n",ptr->name,nDims);
+           if ((errorCode = nc_inq_vardimid(ncid, ptr->ncvarid, tmpDimids))){
+              ERR(errorCode);
+           }
+           for(i = 0; i< nDims; i++){
+              //printf("Variable field = %s has dimid(%d) = %d\n",ptr->name,i,tmpDimids[i]);
+              printf("Variable field = %s has dimid(%d) = %d: start, count => %lu, %lu\n",ptr->name,i,tmpDimids[i],start[tmpDimids[i]],countPtr[tmpDimids[i]]);
+           }
+           //Actually read in the field
+           //printf("Attempting for field = %s with start = %lu,%lu,%lu,%lu and count = %lu,%lu,%lu,%lu\n",
+           //        ptr->name,start[0],start[1],start[2],start[3],countPtr[0],countPtr[1],countPtr[2],countPtr[3]);
+           if ((errorCode = nc_get_vara_int(ncid, ptr->ncvarid, start, countPtr, intField))){
+                ERR(errorCode);
+           }
+         } //end if varFound == 1
+        }//end if mpi_rank_world==0
+        if(varFound==1){
+          //Broadcast the nDims read by the rrot rank for this variable
+          MPI_Bcast(&nDims, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+          if(nDims == 1){
+            MPI_Bcast(intField, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+          }//end if nDims == 1
+        }//end if varFound == 1
       } else {
         printf("Cannot 'get' a NetCDF variable with var.type = %s\n",ptr->type);
       }// if (ptr.type == "float") else ...
@@ -507,6 +564,10 @@ int ioDefineNetCDFoutFileVars(int ncid){
          if ((errorCode = nc_def_var(ncid, ptr->name, NC_FLOAT, ptr->nDims, ptr->dimids, &ptr->ncvarid))){
             ERR(errorCode);
          }
+      }else if (!strcmp(ptr->type,"int")){
+         if ((errorCode = nc_def_var(ncid, ptr->name, NC_INT, ptr->nDims, ptr->dimids, &ptr->ncvarid))){
+            ERR(errorCode);
+         }
       } else {
         printf("Cannot define a NetCDF variable with var->type = %s\n",ptr->type);
       }// if (ptr.type == "float") else ...
@@ -578,6 +639,7 @@ int ioPutNetCDFoutFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
    int ijk,kji,ijkTransposed;
    int rhoDivideSwitch = 0;
    int verbose_log = 0;
+   int *intField;
 
    /* For each entry in the ioVarsList, "put" the var */
    ptr = getFirstVarFromList();
@@ -678,7 +740,7 @@ int ioPutNetCDFoutFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
                } // end for(j...
              } // end for(i...
            } //endif mpi_Rank_world==0
-         }else{
+         }else if((ptr->nDims == 2)&&(ptr->dimids[1] == 2)){
            countPtr=count2d;
            numElems = Nx*Ny;
            /* Set the coordinate bounds */
@@ -689,6 +751,11 @@ int ioPutNetCDFoutFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
                  ioBuffField[kji] = field[ijk]; //out-of-place trim and transpose if the array elements
              } // end for(j...
            } // end for(i...
+         }else if((ptr->nDims == 1)&&(ptr->dimids[0] == 0)){
+           countPtr=count;
+           if(mpi_rank_world==0){
+             ioBuffField[0] = *field;
+           } //endif mpi_Rank_world==0
          }// end if ndims==3  && time,y,z... -else        
 
          /*write the variable */
@@ -702,6 +769,18 @@ int ioPutNetCDFoutFileVars(int ncid, int Nx, int Ny, int Nz, int Nh){
               printf("ioPutNetCDFoutFileVars: Error writing field = %s\n",ptr->name);
            }
          }//endif mpi_Rank_world==0
+      } else if(!strcmp(ptr->type,"int")){
+         intField = (int *) ptr->varMemAddress;
+         if((ptr->nDims == 1)&&(ptr->dimids[0] == 0)){
+           countPtr=count;
+           if (mpi_rank_world==0){
+             if ((errorCode = nc_put_vara_int(ncid, ptr->ncvarid, start, countPtr, intField))){
+                ERR(errorCode);
+                printf("ioPutNetCDFoutFileVars: Error writing field = %s\n",ptr->name);
+                fflush(stdout);
+             }
+           }//endif mpi_Rank_world==0
+         }// end if ndims==1  && dimids[0]=0 (time) 
       } else {
         printf("Cannot 'put' a NetCDF variable with var.type = %s\n",ptr->type);
       }// if (ptr.type == "float") else ...

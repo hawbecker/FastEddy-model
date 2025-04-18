@@ -114,6 +114,18 @@ extern "C" int cuda_timeIntDeviceCommence(int it){
    /*Synchronize the Device*/
    gpuErrchk( cudaDeviceSynchronize() );
 
+   /*Update LAD BCs if appropriate*/
+   if(hydroBCs==1){ //Using LAD BCs
+     if((it%((int)roundf(dtBdyPlaneBCs/dt))==0)&&(it > simTime_itRestart)){
+       printf("cuda_timeIntDeviceCommence:Updating device-side BdyPlanes at it=%d...\n",it);
+       fflush(stdout);
+       errorCode = cuda_hydroCoreDeviceBdyPlanesUpdate();
+       if((cellpertSelector==1)&&(cellpert_tvcp==1)){ // update CP parameters with dynamic LBCs
+         errorCode = cuda_hydroCoreTVCP();
+       } // end if((cellpertSelector==1)&&(cellpert_tvcp==1))
+     }
+   }//end if hydroBCs==1
+
    for(itBatch=0; itBatch < NtBatch; itBatch++){     //Batch timestepping loop
      if((lsfSelector == 1) && (lsf_horMnSubTerms == 1) && (simTime_it > simTime_itRestart) && (simTime_it%(int)roundf(lsf_freq/dt)==0)){
        errorCode = cuda_lsfSlabMeans();
@@ -121,6 +133,9 @@ extern "C" int cuda_timeIntDeviceCommence(int it){
      gpuErrchk( cudaDeviceSynchronize() );
      /*Execute the timeMethod kernel of choice on the GPU*/
      if(timeMethod == 0){    /*******  Issue the  3rd-order Runge-Kutta WS2002 **************/
+       if(cellpertSelector==1 && simTime_it%cellpert_nts==0){ /***** Issue cell perturbation method here *****/
+         errorCode = cuda_hydroCoreDeviceBuildCPmethod(simTime_it); // call to buildCPmethod
+       }
        for(RKstage=0; RKstage < 3; RKstage++){
           /*Build the right hand side forcing*/
           errorCode = cuda_hydroCoreDeviceBuildFrhs(simTime,simTime_it,simTime_itRestart,dt,RKstage,numRKstages);
@@ -140,8 +155,8 @@ extern "C" int cuda_timeIntDeviceCommence(int it){
 #endif
        } //end for RKstage 
      } //end if(timeMethod == 0){...
-     simTime = simTime + dt;   //Increment the master simulation time
      simTime_it = simTime_it + 1;   //Increment the master simulation time step
+     simTime = simTime_it * dt;   /*Increment the master simulation time*/
    }//end for itBatch...
 
    //Retrieve desired HYDRO_CORE fields from device
