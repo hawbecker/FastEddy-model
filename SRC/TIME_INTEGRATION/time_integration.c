@@ -70,6 +70,7 @@ int timeInit(){
    int errorCode = TIME_INTEGRATION_SUCCESS;
    char *strelem;
    int strLength;
+   char varName[MAX_HC_FLDNAME_LENGTH];
 
    if(mpi_rank_world == 0){
       printComment("TIME_INTEGRATION parameters---");
@@ -108,6 +109,13 @@ int timeInit(){
           mpi_rank_world,mpi_size_world,simTime_it,simTime);
    fflush(stdout);
 
+   /*Register a time variable holding "simTime" or the master simulation time*/
+   errorCode = sprintf(&varName[0],"time");
+   errorCode = ioRegisterVar(&varName[0], "float", 1, dims1dTD, &simTime);
+   printf(":Variable = %s stored at %p, has been registered with IO.\n",
+          &varName[0],&simTime);
+   fflush(stdout);
+
    // assign numRKstages and bcast
    if (timeMethod==0) { // 3rd-order Runge-Kutta
      numRKstages = 2;
@@ -117,6 +125,19 @@ int timeInit(){
    return(errorCode);
 } //end timeInit()
 
+/*----->>>>> int timeIntBdyPlaneUpdates();       ----------------------------------------------------------------------
+ * Used to broadcast and print parameters, allocate memory, and initialize configuration settings 
+ * for the TIME_INTEGRATION module.
+ */
+int timeIntBdyPlaneUpdates(){
+    int errorCode = TIME_INTEGRATION_SUCCESS;
+
+    //Time integration wrapped call to hydro_core BdyPlane BCs update
+    errorCode = hydro_coreReadNextBndyPlanesFile();
+
+    return(errorCode);
+} //end timeIntBdyPlaneUpdates(()
+  
 /*----->>>>> int timeCleanup();       ----------------------------------------------------------------------
 Used to free all malloced memory by the TIME_INTEGRATION module.
 */
