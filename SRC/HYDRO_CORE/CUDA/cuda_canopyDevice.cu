@@ -80,9 +80,9 @@ __global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hy
 __device__ void cudaDevice_canopyHeatFlux(float* lai, float* th_Frhs, float dt, int simTime_it){
 
   float canopy_eta = 0.6; // extinction coefficient of canopy heat flux
-  float canopy_q; // heat flux function of LAI 
+  float canopy_q_k, canopy_q_kp1; // heat flux function of LAI 
   float canopy_heat_rate; // this will be calculated
-  int i,j,k,ijk;
+  int i,j,k,ijk,ijkp1;
   int iStride,jStride,kStride;
 
   i = (blockIdx.x)*blockDim.x + threadIdx.x;
@@ -92,13 +92,21 @@ __device__ void cudaDevice_canopyHeatFlux(float* lai, float* th_Frhs, float dt, 
   jStride = (Nz_d+2*Nh_d);
   kStride = 1;
   ijk = i*iStride + j*jStride + k*kStride;
+  ijkp1 = i*iStride + j*jStride + (k+1)*kStride;
+  //if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d)){
+  //  if(lai[ijk] > 0.0){
+  //    canopy_q = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijk]));
+  //    canopy_heat_rate = canopy_q * dZi_d;
+  //    th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate;
+  //  }
+  //}
 
+  // This doesn't seem efficient... but we need to have canopy_q specified at the level above before dQ/dz
   if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d)){
-    if(lai[ijk] > 0.0){
-      canopy_q = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt) )*expf(-canopy_eta*(lai[ijk]));
-      canopy_heat_rate = canopy_q * dZi_d;
+      canopy_q_k = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijk]));
+      canopy_q_kp1 = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijkp1]));
+      canopy_heat_rate = (canopy_q_kp1 - canopy_q_k) * dZi_d;
       th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate;
-    }
   }
 } //end cudaDevice_canopyHeatFlux
 
