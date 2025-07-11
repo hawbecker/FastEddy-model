@@ -29,6 +29,7 @@ center_lon = params["center_lon"]
 FE_new_nc_path = params["FE_new_nc_path"]
 name_dom_add = params["name_dom_add"]
 save_plot_opt = params["save_plot_opt"]
+hrrr_data = params["hrrr_data"]
 
 #######################################
 
@@ -94,7 +95,16 @@ if (npx_inc==0):
 else:
     x_e = x_s + Nx*npx_inc
     y_e = y_s + Ny*npy_inc
+
+if hrrr_data:
+    print("Adding a buffer to help with interpolation")
+    # Creating a buffer: (PSH)
+    x_e += 1
+    x_s -= 1
+    y_e += 1
+    y_s -= 1
 print('x_s,x_e,y_s,y_e=',x_s,x_e,y_s,y_e)
+
 
 box_indx = [x_s,x_e,x_e,x_s,x_s]
 box_indy = [y_s,y_s,y_e,y_e,y_s]
@@ -220,16 +230,23 @@ print('dz_highTopo_v at the top =',dz_highTopo_v[-1],'m')
 xarr = np.zeros((Nz,Ny,Nx),dtype=np.float32)
 if (interp_flag==0):
     xPos_2d_new = xPos_2d[y_s:y_e:npy_inc,x_s:x_e:npx_inc]
-    xPos_2d_new = xPos_2d_new - xPos_2d_new[0,0] + 0.5*d_xi
-for kk in range(0,Nz):
-   xarr[kk,:,:] = xPos_2d_new
+    xPos_2d_new = xPos_2d_new - xPos_2d_new[0,0] + 0.5*d_xi 
 
 yarr = np.zeros((Nz,Ny,Nx),dtype=np.float32)
 if (interp_flag==0):
     yPos_2d_new = yPos_2d[y_s:y_e:npy_inc,x_s:x_e:npx_inc]
-    yPos_2d_new = yPos_2d_new - yPos_2d_new[0,0] + 0.5*d_xi
+    yPos_2d_new = yPos_2d_new - yPos_2d_new[0,0] + 0.5*d_eta
+
+if xPos_2d_new[0,0] != 0.5*d_xi:
+    xPos_2d_new = xPos_2d_new - xPos_2d_new[0,0] + 0.5*d_xi
+if yPos_2d_new[0,0] != 0.5*d_eta:
+    yPos_2d_new = yPos_2d_new - yPos_2d_new[0,0] + 0.5*d_eta
+
+for kk in range(0,Nz):
+   xarr[kk,:,:] = xPos_2d_new
 for kk in range(0,Nz):
    yarr[kk,:,:] = yPos_2d_new
+
 
 # Surface static fields
 z0m_field = ds_GIS.z0m.values
@@ -254,10 +271,10 @@ else:
     print('lat.T.shape=',lat.T.shape)
     f_lat = RectBivariateSpline(xPos_2d_dom_ori[0,:], yPos_2d_dom_ori[:,0], lat[y_s:y_e,x_s:x_e].T, kx=3, ky=3)
     f_lon = RectBivariateSpline(xPos_2d_dom_ori[0,:], yPos_2d_dom_ori[:,0], lon[y_s:y_e,x_s:x_e].T, kx=3, ky=3)
-    data_z0m = f_z0m(xPos_2d_new, yPos_2d_new)
-    data_z0t = f_z0t(xPos_2d_new, yPos_2d_new)
-    data_SeaMask = f_SeaMask(xPos_2d_new, yPos_2d_new)
-    data_landc = f_landc(xPos_2d_new, yPos_2d_new)
+    data_z0m = f_z0m(xPos_2d_new_b, yPos_2d_new_b)
+    data_z0t = f_z0t(xPos_2d_new_b, yPos_2d_new_b)
+    data_SeaMask = f_SeaMask(xPos_2d_new_b, yPos_2d_new_b)
+    data_landc = f_landc(xPos_2d_new_b, yPos_2d_new_b)
     lat_dom_b = f_lat(xPos_1d_new, yPos_1d_new).T
     lon_dom_b = f_lon(xPos_1d_new, yPos_1d_new).T
     lat_dom = lat_dom_b[0:Ny,0:Nx]

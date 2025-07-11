@@ -95,11 +95,11 @@ def smoothTerrain(tPos0,dx):
         print(f'Elapsed time [s]: {np.round(end-start,3)}')
     return tPos1
 
-def interpWRFToGrids(ds_ref,it0,varsList,surfVarsList,zRect,ll_iindx,i_extent,ll_jindx,j_extent):
+def interpWRFToGrids(ds_ref,it0,varsList,surfVarsList,zRect,ll_iindx,i_extent,ll_jindx,j_extent,hrrr_data=False):
     dsWRF = xr.Dataset()
     for i in range(ll_iindx,ll_iindx+i_extent):
         for j in range(ll_jindx,ll_jindx+j_extent):
-            dsWRF1=get_dsWRFStandardZprof(it0,j,i,ds_ref,varsList,surfVarsList,zRect)
+            dsWRF1=get_dsWRFStandardZprof(it0,j,i,ds_ref,varsList,surfVarsList,zRect,hrrr_data)
 
             if(j == ll_jindx):
                 dsWRFj=dsWRF1.expand_dims(dim={'yIndex':1})
@@ -111,8 +111,8 @@ def interpWRFToGrids(ds_ref,it0,varsList,surfVarsList,zRect,ll_iindx,i_extent,ll
             dsWRF=xr.concat([dsWRF,dsWRFj.expand_dims(dim={'xIndex':1})],dim='xIndex')
     return dsWRF
 
-def get_dsWRFStandardZprof(it0,j0,i0,ds_ref,varsList,surfVarsList,zProf):
-    ds_ij=getFEProfileDS(getWRFProfileDS(it0,j0,i0,ds_ref,varsList,surfVarsList),varsList,surfVarsList,zProf)
+def get_dsWRFStandardZprof(it0,j0,i0,ds_ref,varsList,surfVarsList,zProf,hrrr_data=False):
+    ds_ij=getFEProfileDS(getWRFProfileDS(it0,j0,i0,ds_ref,varsList,surfVarsList,hrrr_data),varsList,surfVarsList,zProf)
 
     return ds_ij
 
@@ -136,7 +136,7 @@ def getFEProfileDS(dsWrf,varsList,surfVarsList,zFE): ##### Map (Interp/Extrap-ol
         ds_ret[surfVarDict[surfVar]] = xr.DataArray(dsWrf[surfVar])
     return ds_ret
 
-def getWRFProfileDS(it,j,i,dsWrf,varsList,surfVarsList): ##### Destagger and collect a set of required WRF vertical profiles from a given i,j location in WRF
+def getWRFProfileDS(it,j,i,dsWrf,varsList,surfVarsList,hrrr_data=False): ##### Destagger and collect a set of required WRF vertical profiles from a given i,j location in WRF
     ds_ret=xr.Dataset()
     fromRestart = False
     for var in varsList:
@@ -146,9 +146,14 @@ def getWRFProfileDS(it,j,i,dsWrf,varsList,surfVarsList): ##### Destagger and col
                                            +0.5*(dsWrf.PHB[it,0:-1,j,i]+dsWrf.PHB[it,1:,j,i]))/9.81,
                                            dims=(['bottom_top']))
             else:
-                ds_ret[var] = xr.DataArray((0.5*(dsWrf.PH[it,0:-1,j,i]+dsWrf.PH[it,1:,j,i])
-                                           +0.5*(dsWrf.PHB[it,0:-1,j,i]+dsWrf.PHB[it,1:,j,i]))/9.81,
-                                           dims=(['bottom_top']))
+                if hrrr_data:
+                    ds_ret[var] = xr.DataArray(dsWrf.PH[it,:,j,i],
+                                               dims=(['bottom_top']))
+                else:
+                    ds_ret[var] = xr.DataArray((0.5*(dsWrf.PH[it,0:-1,j,i]+dsWrf.PH[it,1:,j,i])
+                                               +0.5*(dsWrf.PHB[it,0:-1,j,i]+dsWrf.PHB[it,1:,j,i]))/9.81,
+                                               dims=(['bottom_top']))
+
         elif 'west_east_stag' in dsWrf[var].dims:
             ds_ret[var] = xr.DataArray(0.5*(dsWrf[var][it,:,j,i]+dsWrf[var][it,:,j,i+1]),
                                        dims=(['bottom_top']))
@@ -317,3 +322,158 @@ def addTimeDim_FEfinal(dsFEFinal):
         if len(dsFEFinal[var].values.shape) != 1:
             dsFEFinal[var] = dsFEFinal[var].expand_dims(dim={'time':1},axis=0)
     return
+
+def air_density_moist(pressure_pa, temperature_k, relative_humidity, dewpoint_k=None):
+    """
+    Calculate moist air density accounting for humidity.
+
+    Parameters:
+    - pressure_pa: Total atmospheric pressure in pascals (Pa)
+    - temperature_k: Air temperature in kelvin (K)
+    - relative_humidity: Relative humidity in fraction (0–1)
+    - dewpoint_k: Optional dewpoint temperature in K (if known, overrides RH)
+
+    Returns:
+    - Air density in kg/m^3
+    """
+    R_d = 287.05      # J/(kg·K) for dry air
+    R_v = 461.5       # J/(kg·K) for water vapor
+    epsilon = R_d / R_v  # ~0.622
+
+    # Compute saturation vapor pressure (in Pa) using Tetens formula
+    def saturation_vapor_pressure(T):
+        T_C = T - 273.15  # convert to Celsius
+        return 610.94 * np.exp((17.625 * T_C) / (T_C + 243.04))
+
+    # Actual vapor pressure
+    if dewpoint_k is not None:
+        e = saturation_vapor_pressure(dewpoint_k)
+    else:
+        es = saturation_vapor_pressure(temperature_k)
+        e = relative_humidity * es
+
+    # Mixing ratio (kg water vapor / kg dry air)
+    r = epsilon * e / (pressure_pa - e)
+
+    # Virtual temperature
+    T_v = temperature_k * (1 + 0.61 * r)
+
+    # Moist air density
+    rho = pressure_pa / (R_d * T_v)
+    return rho
+
+
+def potential_temperature(temperature_k, pressure_pa, p0=100000.0):
+    """
+    Calculate potential temperature in Kelvin.
+
+    Parameters:
+    - temperature_k: Temperature in Kelvin
+    - pressure_pa: Pressure in Pascals
+    - p0: Reference pressure in Pascals (default 100000 Pa)
+
+    Returns:
+    - Potential temperature in Kelvin
+    """
+    R_d = 287.05     # J/(kg·K)
+    c_p = 1004.0     # J/(kg·K)
+
+    theta = temperature_k * (p0 / pressure_pa) ** (R_d / c_p)
+    return theta
+
+def temperature_from_potential(theta_k, pressure_pa, p0=100000.0):
+    """
+    Calculate actual temperature from potential temperature.
+
+    Parameters:
+    - theta_k: Potential temperature in Kelvin
+    - pressure_pa: Pressure in Pascals
+    - p0: Reference pressure in Pascals (default 100000 Pa)
+
+    Returns:
+    - Temperature in Kelvin
+    """
+    R_d = 287.05     # J/(kg·K)
+    c_p = 1004.0     # J/(kg·K)
+
+    T = theta_k * (pressure_pa / p0) ** (R_d / c_p)
+    return T
+
+def openHRRRfile(file_path):
+    mapping_dict = {
+        'surface': {
+            'ZNT': 'sr',           # surface roughness
+            'LU_INDEX': 'gppbfas', # vegetation type (water = 17)
+            'LANDMASK': 'lsm', # Land-sea mask
+            'HGT': 'orog',         # orography
+            'PSFC': 'sp',          # surface pressure (Pa)
+            'XLAT': 'latitude',
+            'XLONG': 'longitude',
+            'TSK': 't'
+        },
+        ('heightAboveGround', 2): {
+            'Q2': 'sh2'            # specific humidity at 2m
+        },
+        'isobaricInhPa': {
+            'QVAPOR': 'q',
+            'QCLOUD': 'clwmr',
+            'T': 't',
+            'U': 'u',
+            'V': 'v',
+            'W': 'w',
+            'PH': 'gh',
+            'PHB': None,
+            'ALT': None,
+            'RH':'r',
+            'P':'isobaricInhPa'
+        }
+    }
+    # Need those additional variables (RH and P) for inverse density, ALT calculation
+    init_ds = True
+    for key in mapping_dict:
+        hgt = None
+        if type(key) is str:
+            level = key
+        else:
+            level = key[0]
+            hgt = key[1]
+            kwargs = {'level':key[1]}
+        if hgt is None:
+            ds = xr.open_dataset(file_path,engine='cfgrib', filter_by_keys={'typeOfLevel': level,'stepType': 'instant'})
+        else:
+            ds = xr.open_dataset(file_path,engine='cfgrib', filter_by_keys={'typeOfLevel': level,'stepType': 'instant','level': hgt})
+        for varn in mapping_dict[key]:
+            hrrr_varn = mapping_dict[key][varn]
+            if hrrr_varn is not None:
+                hrrr_var = ds[hrrr_varn]
+                hrrr_var.name = varn
+                if init_ds:
+                    ds_f = hrrr_var.copy()
+                    init_ds = False
+                else:
+                    ds_f = xr.merge([ds_f,hrrr_var])
+    
+    #ds_f['temp'] = ds_f.T
+    ds_f['temp'] = temperature_from_potential(ds_f.T,ds_f.P*100.0)
+    
+    ds_f['T'] = ds_f.T - 300.0
+    
+    density = air_density_moist(ds_f.P*100.0,ds_f.temp,ds_f.RH/100.0)
+    
+    ds_f['ALT'] = 1.0/density
+    ds_f['longitude'] = ds_f.longitude - 360.0
+    ds_f['PHB'] = ds_f.PH * 0.0
+    ds_f = ds_f.rename({'isobaricInhPa':'bottom_top'})
+    ds_f['bottom_top'] = range(ds_f.sizes['bottom_top'])
+    return(ds_f)
+
+def openMultipleHRRRfiles(files_list):
+    for ff,f in enumerate(files_list):
+        ds = openHRRRfile(f)
+        ds = ds.rename({'time':'Time'}).drop('valid_time')
+        ds = ds.expand_dims({'Time':[ds.Time.data]},axis=0)
+        if ff == 0:
+            ds_f = ds.copy()
+        else:
+            ds_f = xr.merge([ds_f,ds])
+    return(ds_f)

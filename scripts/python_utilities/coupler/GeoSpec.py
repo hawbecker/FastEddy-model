@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import time
 import matplotlib
 from couplingUtils import *
+import os
 
 #######################################
 ### read parameters from .json file ###
@@ -33,26 +34,33 @@ save_plot_opt = params["save_plot_opt"]
 
 # derived paths
 
-file_nlcd = gis_root + nlcd_name
-FE_new_nc = FE_dataset_path + name_dom + name_dom_add + '.nc'
-FE_plot = FE_dataset_path + name_dom + name_dom_add + '_geospec.png'
+file_nlcd = os.path.join(gis_root, nlcd_name)
+FE_new_nc = os.path.join(FE_dataset_path, (name_dom + name_dom_add + '.nc'))
+FE_plot = os.path.join(FE_dataset_path, (name_dom + name_dom_add + '_geospec.png'))
 print('FE_new_nc:', FE_new_nc)
 
 # Calculate xPos2d, yPos2d
-
 start_code = time.perf_counter()
-
-ds_GIS = xr.open_dataset(gis_root+gis_file)
+if (gis_opt==2):
+    ds_GIS = openHRRRfile(os.path.join(gis_root,gis_file))
+else:
+    ds_GIS = xr.open_dataset(os.path.join(gis_root,gis_file))
+    
 if (gis_opt==0):
     dx = ds_GIS.cellsize.values
     dy = dx
     Nx = ds_GIS.sizes['x']
     Ny = ds_GIS.sizes['y']
-elif (gis_opt==1):
+elif (gis_opt==1): # WRF
     dx = ds_GIS.attrs['DX']
     dy = ds_GIS.attrs['DY']
     Nx = ds_GIS.sizes['west_east']
     Ny = ds_GIS.sizes['south_north']
+elif (gis_opt==2): # HRRR
+    dx = ds_GIS.GRIB_DxInMetres
+    dy = ds_GIS.GRIB_DyInMetres
+    Nx = ds_GIS.sizes['x']
+    Ny = ds_GIS.sizes['y']
 print('dx,dy=',dx,',',dy,'(m)')
 print('Nx,Ny=',Nx,',',Ny)
 
@@ -71,6 +79,8 @@ if (gis_opt==0):
     vars_gis_v = ['lat','lon','elevation','LandCover']
 elif (gis_opt==1):
     vars_gis_v = ['XLAT','XLONG','HGT','LU_INDEX']
+elif (gis_opt==2):
+    vars_gis_v = ['latitude','longitude','HGT','LU_INDEX']
 
 vv = 0
 for var in vars_gis_ref_v:
@@ -79,6 +89,8 @@ for var in vars_gis_ref_v:
         line_vv = var + ' = ds_GIS.' + var_name + '.values'
     elif (gis_opt==1):
         line_vv = var + ' = ds_GIS.' + var_name + '.isel(Time=0).values'
+    elif (gis_opt==2):
+        line_vv = var + ' = ds_GIS.' + var_name + '.values'
     exec(line_vv)
     vv = vv + 1
 
@@ -116,6 +128,13 @@ if (gis_opt==0):
 elif (gis_opt==1):
     z0_tmp = ds_GIS.ZNT.isel(Time=0).values
     SeaMask_tmp = ds_GIS.LANDMASK.isel(Time=0).values
+    ind_land_wrf = np.where(SeaMask_tmp==1.0)
+    ind_sea_wrf = np.where(SeaMask_tmp==0.0)
+    SeaMask_tmp[ind_land_wrf] = 0.0
+    SeaMask_tmp[ind_sea_wrf] = 1.0
+elif (gis_opt==2):
+    z0_tmp = ds_GIS.ZNT.values
+    SeaMask_tmp = ds_GIS.LANDMASK.values
     ind_land_wrf = np.where(SeaMask_tmp==1.0)
     ind_sea_wrf = np.where(SeaMask_tmp==0.0)
     SeaMask_tmp[ind_land_wrf] = 0.0

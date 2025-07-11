@@ -49,6 +49,7 @@ timeMinute0 = params["timeMinute0"]
 timeSecond0 = params["timeSecond0"]
 secMax = params["secMax"]
 secInc = params["secInc"]
+hrrr_data = params["hrrr_data"]
 
 print(f"{mpi_rank}/{mpi_size}: Writing coupler outputs to {ICBC_dir}")
 print(f"{mpi_rank}/{mpi_size}: Interpolating to FE-domain from {FE_simGrid}")
@@ -73,10 +74,13 @@ month0 = int(dateString[5:7])
 day0 = int(dateString[8:10])
 
 date_it = dt.datetime(year0,month0,day0,timeHour0,timeMinute0,timeSecond0)
-for it in range(0,secMax,secInc):
+for it in range(0,secMax+1,secInc):
     dateString_it = str(date_it.year) + '-' + "{:02d}".format(date_it.month)  + '-' + "{:02d}".format(date_it.day) + '_'
     thistime = "{:s}{:02d}:{:02d}:{:02d}".format(dateString_it,date_it.hour,date_it.minute,date_it.second)
-    file_tmp = f'{WRF_PrntDir}{WRF_PrntOutPrefix}{thistime}'
+    if hrrr_data:
+        file_tmp = os.path.join(WRF_PrntDir, dateString_it.replace('-','')+'hrrr.t{0:02d}z.wrfprsf00.grib2'.format(date_it.hour))
+    else:
+        file_tmp = f'{WRF_PrntDir}{WRF_PrntOutPrefix}{thistime}'
     files_list.append(file_tmp)
     if(mpi_rank == 0):
        print(file_tmp)
@@ -136,7 +140,17 @@ ds_FEGrid=xr.open_dataset(FE_simGrid)
 ########################################
 ### Load the reference WRF data file ###
 ########################################
-ds_WRFRef=xr.open_dataset(files_list[0])
+if hrrr_data:
+    ds_WRFRef=openHRRRfile(files_list[0])
+    ds_WRFRef = ds_WRFRef.expand_dims(dim='time',axis=0)
+    ds_WRFRef['XLAT'] = ds_WRFRef.latitude.expand_dims(dim='time',axis=0)
+    ds_WRFRef['XLONG'] = ds_WRFRef.longitude.expand_dims(dim='time',axis=0)
+    ds_WRFRef = ds_WRFRef.drop(['latitude','longitude'])
+    ds_WRFRef.attrs['DX'] = ds_WRFRef.GRIB_DxInMetres
+    ds_WRFRef.attrs['DY'] = ds_WRFRef.GRIB_DyInMetres
+else:
+    ds_WRFRef=xr.open_dataset(files_list[0])
+    
 
 ############################################################################################
 ### Locate the FE-grid-bounding corners as index pairs (j,i) in the WRF-reference domain ###
@@ -328,10 +342,13 @@ for Bdy_file_num in range(it00,it11):
   if not(os.path.isfile(bdyFileName)):
     print('{:d}{:d}: {:s} does not exist, creating it...'.format(mpi_rank, mpi_size, bdyFileName))
     print("{:d}{:d}: Working on file {:s}".format(mpi_rank, mpi_size, files_list[Bdy_file_num]))
-    ds_ref = xr.open_mfdataset(files_list[Bdy_file_num],combine='nested',concat_dim='Time')
+    if hrrr_data:
+        ds_ref = openMultipleHRRRfiles(files_list)
+    else:
+        ds_ref = xr.open_mfdataset(files_list[Bdy_file_num],combine='nested',concat_dim='Time')
 
     t0s = time.perf_counter()
-    dsWRF=interpWRFToGrids(ds_ref,it0,varsList,surfVarsList,zRect,ll_iindx,i_extent,ll_jindx,j_extent)
+    dsWRF=interpWRFToGrids(ds_ref,it0,varsList,surfVarsList,zRect,ll_iindx,i_extent,ll_jindx,j_extent,hrrr_data)
     t0e = time.perf_counter()
     print('{:d}/{:d}: t0_elapsed = {:f} (s)'.format(mpi_rank, mpi_size, t0e-t0s))
     t1s = time.perf_counter()
