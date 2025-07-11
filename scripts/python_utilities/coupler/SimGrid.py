@@ -271,10 +271,10 @@ else:
     print('lat.T.shape=',lat.T.shape)
     f_lat = RectBivariateSpline(xPos_2d_dom_ori[0,:], yPos_2d_dom_ori[:,0], lat[y_s:y_e,x_s:x_e].T, kx=3, ky=3)
     f_lon = RectBivariateSpline(xPos_2d_dom_ori[0,:], yPos_2d_dom_ori[:,0], lon[y_s:y_e,x_s:x_e].T, kx=3, ky=3)
-    data_z0m = f_z0m(xPos_2d_new_b, yPos_2d_new_b)
-    data_z0t = f_z0t(xPos_2d_new_b, yPos_2d_new_b)
-    data_SeaMask = f_SeaMask(xPos_2d_new_b, yPos_2d_new_b)
-    data_landc = f_landc(xPos_2d_new_b, yPos_2d_new_b)
+    data_z0m = f_z0m(xPos_2d_new_b, yPos_2d_new_b)[0:Ny,0:Nx]
+    data_z0t = f_z0t(xPos_2d_new_b, yPos_2d_new_b)[0:Ny,0:Nx]
+    data_SeaMask = f_SeaMask(xPos_2d_new_b, yPos_2d_new_b)[0:Ny,0:Nx]
+    data_landc = f_landc(xPos_2d_new_b, yPos_2d_new_b)[0:Ny,0:Nx]
     lat_dom_b = f_lat(xPos_1d_new, yPos_1d_new).T
     lon_dom_b = f_lon(xPos_1d_new, yPos_1d_new).T
     lat_dom = lat_dom_b[0:Ny,0:Nx]
