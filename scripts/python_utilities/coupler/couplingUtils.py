@@ -453,10 +453,9 @@ def openHRRRfile(file_path):
                 else:
                     ds_f = xr.merge([ds_f,hrrr_var])
     
-    #ds_f['temp'] = ds_f.T
-    ds_f['temp'] = temperature_from_potential(ds_f.T,ds_f.P*100.0)
-    
-    ds_f['T'] = ds_f.T - 300.0
+    ds_f['temp'] = ds_f.T.copy()
+    #ds_f['temp'] = temperature_from_potential(ds_f.T,ds_f.P*100.0)
+    ds_f['T'] = potential_temperature(ds_f.T,ds_f.P*100.0) - 300.0
     
     density = air_density_moist(ds_f.P*100.0,ds_f.temp,ds_f.RH/100.0)
     
