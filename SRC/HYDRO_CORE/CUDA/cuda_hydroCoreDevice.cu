@@ -428,7 +428,7 @@ extern "C" int cuda_hydroCoreDeviceBuildFrhs(float simTime, int simTime_it, int 
                                                             invOblen_d, z0m_d, z0t_d, qFlux_d, qskin_d, sea_mask_d,
                                                             hydroRhoInv_d, hydroKappaM_d, sgstkeScalars_d, sgstke_ls_d,
                                                             dedxi_d, moistScalars_d, moistTauFlds_d, moistScalarsFrhs_d,
-                                                            J13_d, J23_d, J31_d, J32_d, J33_d, D_Jac_d);
+                                                            J13_d, J23_d, J31_d, J32_d, J33_d, D_Jac_d, canopy_lai_d);
    gpuErrchk( cudaGetLastError() );
 #ifdef TIMERS_LEVEL2
    stopSynchReportDestroyEvent(&startE, &stopE, &elapsedTime);
@@ -973,7 +973,8 @@ __global__ void cudaDevice_hydroCoreCalcFaceVelocities(float simTime, int simTim
                                                        float* hydroRhoInv_d, float* hydroKappaM_d, float* sgstkeScalars_d, float* sgstke_ls_d,
                                                        float* dedxi_d, float* moistScalars_d, float* moistTauFlds_d,
                                                        float* moistScalarsFrhs_d,
-                                                       float* J13_d, float* J23_d, float* J31_d, float* J32_d, float* J33_d, float* D_Jac_d){
+                                                       float* J13_d, float* J23_d, float* J31_d, float* J32_d, float* J33_d, float* D_Jac_d,
+                                                       float* canopy_lai_d){
    int fldStride;
    float inv_pr; 
    int iFld; 
@@ -1132,7 +1133,15 @@ __global__ void cudaDevice_hydroCoreCalcFaceVelocities(float simTime, int simTim
        } // end if moistureSelector_d
      } //end if surflayerSelector_d > 0 && k == kMin_d
    } //end if in the range of non-halo surface cells
-
+ 
+   //### CANOPY HEAT FLUX ###//
+   // PSH - Call Canopy Heat Flux here --- adjust taus, not Frhs
+   if(canopySelector_d == 2){
+     cudaDevice_canopyHeatFlux(&canopy_lai_d[0],
+                               //&hydroFldsFrhs_d[fldStride*THETA_INDX],
+							   &hydroTauFlds_d[8*fldStride+ijk],
+                               dt,simTime_it);
+   }
 } //end cudaDevice_hydroCoreCalcFaceVelocities
  
 /*----->>>>> __device__ void  cudaDevice_SetRhoInv();  --------------------------------------------------
