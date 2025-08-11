@@ -1138,8 +1138,8 @@ __global__ void cudaDevice_hydroCoreCalcFaceVelocities(float simTime, int simTim
    // PSH - Call Canopy Heat Flux here --- adjust taus, not Frhs
    if(canopySelector_d == 2){
      cudaDevice_canopyHeatFlux(&canopy_lai_d[0],
-                               //&hydroFldsFrhs_d[fldStride*THETA_INDX],
-							   &hydroTauFlds_d[8*fldStride+ijk],
+	                       &hydroTauFlds_d[8*fldStride], 
+			       &hydroFlds_d[RHO_INDX*fldStride],
                                dt,simTime_it);
    }
 } //end cudaDevice_hydroCoreCalcFaceVelocities

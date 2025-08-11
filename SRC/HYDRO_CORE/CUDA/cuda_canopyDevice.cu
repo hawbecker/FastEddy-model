@@ -78,7 +78,7 @@ __global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hy
 
 /*----->>>>> __device__ void  cudaDevice_canopyHeatFlux();  --------------------------------------------------
 */
-__device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float dt, int simTime_it){
+__device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float* rho, float dt, int simTime_it){
 
   float canopy_eta = 0.6; // extinction coefficient of canopy heat flux
   float canopy_q; // this will be calculated
@@ -98,7 +98,7 @@ __device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float dt, i
   if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d)){
     if(lai[ijk] > 0.0){
       canopy_q = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijk]));
-      tauTH3[ijk] = tauTH3[ijk] + canopy_q;
+      tauTH3[ijk] = tauTH3[ijk] + canopy_q*rho[ijk];
       //canopy_heat_rate = canopy_q * dZi_d; // orig PSH
       //th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate; // orig PSH
     }
