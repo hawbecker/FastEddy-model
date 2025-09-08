@@ -168,6 +168,7 @@ float* sea_mask;                /* Base Address of memory containing sea mask 0,
 /*Canopy module parameters*/
 int canopySelector;         /* canopy selector: 0=off, 1=on */
 int canopySkinOpt;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
+int kCanTop;                /* Single integer index of highest k-level that includes canopy */
 float canopy_cd;            /* non-dimensional canopy drag coefficient cd coefficient */
 float canopy_lf;            /* representative canopy element length scale */
 float canopy_heat_flux;     /* Heat flux coefficient for the canopy layer [K m s^{-1}] */
@@ -1502,7 +1503,8 @@ int hydro_coreInit(){
 */
 int hydro_corePrepareFromInitialConditions(int simTime_itRestart, float dt){
   int errorCode = HYDRO_CORE_SUCCESS;
- 
+  int i,j,k,ijk;
+
   if(hydroBCs==1){ //Using LAD BCs
     printf("mpi_rank_world--%d/%d: Starting hydro_coreSetupBndyPlanesAllRanks() under restart\n",
            mpi_rank_world,mpi_size_world);
@@ -1553,6 +1555,24 @@ int hydro_corePrepareFromInitialConditions(int simTime_itRestart, float dt){
 
   } //end if surflayerSelector >0 
 
+  //Determine an initial maximum Canopy k-level across the simulation domain
+  if(canopySelector > 0){  
+    int rank_kCanTop = kMin;
+    for(i=iMin; i < iMax; i++){       // Cover the halos in X 
+      for(j=jMin; j < jMax; j++){     // Cover the halos in Y 
+        for(k=kMin-Nh; k < kMax; k++){   // Cover the halos in Z 
+           ijk = i*(Nyp+2*Nh)*(Nzp+2*Nh)+j*(Nzp+2*Nh)+k;
+	   if(canopy_lad[ijk] > 0 && k > rank_kCanTop){
+              rank_kCanTop = k;
+	   } //end if CanopyLAD[ijk]...
+        } //end for(k...
+      } // end for(j...
+    } // end for(i...
+    MPI_Allreduce(&rank_kCanTop, &kCanTop, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    printf("mpi_rank_world--%d/%d: Established kCanTop = %d.\n",mpi_rank_world,mpi_size_world,kCanTop);
+    fflush(stdout);
+  } //end if canopySelector >0 
+    
   return(errorCode);
 } //end hydro_corePrepareFromInitialConditions()
 

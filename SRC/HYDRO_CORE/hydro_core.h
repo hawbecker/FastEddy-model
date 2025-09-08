@@ -168,6 +168,7 @@ extern float* sea_mask;              /* Base Address of memory containing sea ma
 /*---CANOPY*/
 extern int canopySelector;         /* canopy selector: 0=off, 1=on */
 extern int canopySkinOpt;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
+extern int kCanTop;                /* Single integer index of highest k-level that includes canopy */
 extern float canopy_cd;            /* non-dimensional canopy drag coefficient */
 extern float canopy_lf;            /* representative canopy element length scale */
 extern float canopy_heat_flux;     /* Heat flux coefficient for the canopy layer [K m s^{-1}] */
