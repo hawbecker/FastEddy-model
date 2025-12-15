@@ -328,6 +328,11 @@ extern "C" int cuda_hydroCoreDeviceBuildFrhs(float simTime, int simTime_it, int 
    double mpi_t1, mpi_t2, mpi_t3, mpi_t4;
    mpi_t1 = MPI_Wtime();    //Mark the walltime to measure duration of initializations.
 #endif
+
+   //Slip in an initial model start/restart only-step...
+   if(simTime_it == simTime_itRestart){
+           cudaDevice_setCanopyLAI<<<grid, tBlock>>>(canopy_lai_d, canopy_lad_d, J33_d);
+   }
    //Hydro-Core prognostic fields
    for(iFld=0; iFld < Nhydro; iFld++){   
      if(numProcsX>1){
@@ -480,7 +485,8 @@ extern "C" int cuda_hydroCoreDeviceBuildFrhs(float simTime, int simTime_it, int 
                                                                     sgstkeScalars_d, sgstkeScalarsFrhs_d, canopy_lad_d,
                                                                     J13_d, J23_d, J31_d, J32_d, J33_d, D_Jac_d); //call to prognostic TKE equation
        if (canopySelector>0){ // canopy drag term to forcing of momentum
-         cudaDevice_hydroCoreCompleteCanopy<<<grid, tBlock>>>(hydroFlds_d, hydroRhoInv_d, canopy_lad_d, hydroFldsFrhs_d, canopy_lai_d, dt, simTime_it);
+         //cudaDevice_hydroCoreCompleteCanopy<<<grid, tBlock>>>(hydroFlds_d, hydroRhoInv_d, canopy_lad_d, hydroFldsFrhs_d, canopy_lai_d, dt, simTime_it);
+         cudaDevice_hydroCoreCompleteCanopy<<<grid, tBlock>>>(hydroFlds_d, hydroRhoInv_d, canopy_lad_d, hydroFldsFrhs_d, canopy_lai_d, J33_d, dt, simTime_it);
        }
      } // end if (turbSelector >0) && (TKESelector > 0)
      //Moist species microphysics forcings 
@@ -1136,12 +1142,12 @@ __global__ void cudaDevice_hydroCoreCalcFaceVelocities(float simTime, int simTim
  
    //### CANOPY HEAT FLUX ###//
    // PSH - Call Canopy Heat Flux here --- adjust taus, not Frhs
-   if(canopySelector_d == 2){
+   /*if(canopySelector_d == 2){
      cudaDevice_canopyHeatFlux(&canopy_lai_d[0],
-                               //&hydroFldsFrhs_d[fldStride*THETA_INDX],
-							   &hydroTauFlds_d[8*fldStride+ijk],
+	                       &hydroTauFlds_d[8*fldStride], 
+			       &hydroFlds_d[RHO_INDX*fldStride],
                                dt,simTime_it);
-   }
+   }*/
 } //end cudaDevice_hydroCoreCalcFaceVelocities
  
 /*----->>>>> __device__ void  cudaDevice_SetRhoInv();  --------------------------------------------------

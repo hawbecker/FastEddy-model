@@ -1,6 +1,7 @@
 /*---CANOPY MODEL*/
 __constant__ int canopySelector_d;         /* canopy selector: 0=off, 1=on */
 __constant__ int canopySkinOpt_d;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
+__constant__ int kCanTop_d;                /* Single integer index of highest k-level that includes canopy */
 __constant__ float canopy_cd_d;            /* non-dimensional canopy drag coefficient cd coefficient */
 __constant__ float canopy_lf_d;            /* representative canopy element length scale */
 __constant__ float canopy_heat_flux_d;     /* Heat flux coefficient for the canopy layer */
@@ -20,6 +21,7 @@ extern "C" int cuda_canopyDeviceSetup(){
 
    cudaMemcpyToSymbol(canopySelector_d, &canopySelector, sizeof(int));
    cudaMemcpyToSymbol(canopySkinOpt_d, &canopySkinOpt, sizeof(int));
+   cudaMemcpyToSymbol(kCanTop_d, &kCanTop, sizeof(int));
    cudaMemcpyToSymbol(canopy_cd_d, &canopy_cd, sizeof(float));
    cudaMemcpyToSymbol(canopy_lf_d, &canopy_lf, sizeof(float));
 
@@ -56,7 +58,13 @@ extern "C" int cuda_canopyDeviceCleanup(){
 
 }//end cuda_canopyDeviceCleanup()
 
-__global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d, float* canopy_lai_d, float dt, int simTime_it){
+__global__ void cudaDevice_setCanopyLAI(float* canopy_lai_d, float* canopy_lad_d, float* J33_d){
+  
+   cudaDevice_computeLAI(&canopy_lai_d[0], &canopy_lad_d[0], &J33_d[0]);
+
+}//end cuda_canopyDevice_setCanopyLAI()
+
+__global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d, float* canopy_lai_d, float* J33_d, float dt, int simTime_it){
 
    int fldStride;
 
@@ -67,6 +75,11 @@ __global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hy
                             &hydroFldsFrhs_d[fldStride*U_INDX], &hydroFldsFrhs_d[fldStride*V_INDX],
                             &hydroFldsFrhs_d[fldStride*W_INDX]);
 
+   cudaDevice_canopyHeatFlux_JAS(&canopy_lai_d[0], 
+		                 &hydroFldsFrhs_d[fldStride*THETA_INDX],
+				 &hydroFlds_d[fldStride*RHO_INDX], 
+				 &J33_d[0],
+				 dt, simTime_it);
 // PSH - Moving this call to hydroCoreDevice.cu
 //   if(canopySelector_d == 2){ 
 //     cudaDevice_canopyHeatFlux(&canopy_lai_d[0],
@@ -78,7 +91,7 @@ __global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hy
 
 /*----->>>>> __device__ void  cudaDevice_canopyHeatFlux();  --------------------------------------------------
 */
-__device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float dt, int simTime_it){
+__device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float* rho, float dt, int simTime_it){
 
   float canopy_eta = 0.6; // extinction coefficient of canopy heat flux
   float canopy_q; // this will be calculated
@@ -95,13 +108,14 @@ __device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float dt, i
   kStride = 1;
   ijk = i*iStride + j*jStride + k*kStride;
 //  ijkp1 = i*iStride + j*jStride + (k+1)*kStride;
-  if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d)){
-    if(lai[ijk] > 0.0){
+  if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d+1)){
+  //if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d)){
+    //if(lai[ijk] > 0.0){
       canopy_q = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijk]));
-      tauTH3[ijk] = tauTH3[ijk] + canopy_q;
-      //canopy_heat_rate = canopy_q * dZi_d; // orig PSH
-      //th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate; // orig PSH
-    }
+      //tauTH3[ijk] = tauTH3[ijk] - canopy_q;  //Note add -Q here to be consistent with 
+      tauTH3[ijk] = tauTH3[ijk] - canopy_q*rho[ijk];  //Note add -Q here to be consistent with 
+                                                      // -d_dz(tauTH3) calculated for the forcing term
+    //}
   }
 
   //// This doesn't seem efficient... but we need to have canopy_q specified at the level above before dQ/dz
@@ -112,6 +126,35 @@ __device__ void cudaDevice_canopyHeatFlux(float* lai, float* tauTH3, float dt, i
   //    th_Frhs[ijk] = th_Frhs[ijk] + canopy_heat_rate;
   //}
 } //end cudaDevice_canopyHeatFlux
+
+/*----->>>>> __device__ void  cudaDevice_canopyHeatFlux();  --------------------------------------------------
+*/
+__device__ void cudaDevice_canopyHeatFlux_JAS(float* lai, float* Frhs_theta, float* rho, float* J33,
+		                              float dt, int simTime_it){
+
+  float canopy_eta = 0.6; // extinction coefficient of canopy heat flux
+  float canopy_q_upper; // this will be calculated
+  float canopy_q_lower; // this will be calculated
+  int i,j,k,ijk,ijkp1;
+  int iStride,jStride,kStride;
+
+  i = (blockIdx.x)*blockDim.x + threadIdx.x;
+  j = (blockIdx.y)*blockDim.y + threadIdx.y;
+  k = (blockIdx.z)*blockDim.z + threadIdx.z;
+  iStride = (Ny_d+2*Nh_d)*(Nz_d+2*Nh_d);
+  jStride = (Nz_d+2*Nh_d);
+  kStride = 1;
+  ijk = i*iStride + j*jStride + k*kStride;
+  ijkp1 = i*iStride + j*jStride + (k+1)*kStride;
+  if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d+1)){
+    if((lai[ijkp1] > 0.0) && (lai[ijk] > 0.0)){
+      canopy_q_upper = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijkp1]));
+      canopy_q_lower = ( (canopy_heat_flux_d) + (canopy_heat_flux_rate_d*simTime_it*dt/3600.0) )*expf(-canopy_eta*(lai[ijk]));
+      Frhs_theta[ijk] = Frhs_theta[ijk] + dZi_d*J33[ijk]*(canopy_q_upper-canopy_q_lower)*rho[ijk];  
+    }
+  }
+
+} //end cudaDevice_canopyHeatFlux_JAS
 
 /*----->>>>> __device__ void  cudaDevice_canopyMomDrag();  --------------------------------------------------
 */
@@ -238,6 +281,34 @@ __device__ void cudaDevice_sgstkeLengthScaleLF(float* sgstke_ls){
   } // if (within the computational domain...) 
 
 } //end cudaDevice_sgstkeLengthScaleLF
+
+/*----->>>>> __device__ void  cudaDevice_computeLAI();  --------------------------------------------------
+*/
+__device__ void cudaDevice_computeLAI(float* lai, float* lad, float* J33){
+  int i,j,k,ijk,ktmp,ijktmp;
+  int iStride,jStride,kStride;
+
+  i = (blockIdx.x)*blockDim.x + threadIdx.x;
+  j = (blockIdx.y)*blockDim.y + threadIdx.y;
+  k = (blockIdx.z)*blockDim.z + threadIdx.z;
+  iStride = (Ny_d+2*Nh_d)*(Nz_d+2*Nh_d);
+  jStride = (Nz_d+2*Nh_d);
+  kStride = 1;
+  ijk = i*iStride + j*jStride + k*kStride;
+
+  if((i >= iMin_d)&&(i < iMax_d) && (j >= jMin_d)&&(j < jMax_d) && (k >= kMin_d)&&(k < kMax_d+1)){
+    lai[ijk] = 0.0;
+    for(ktmp=kCanTop_d; ktmp > (k-1); ktmp--){ // loop from Canopy Top down to kth level    
+       ijktmp = i*iStride + j*jStride + ktmp*kStride;
+       lai[ijk] = lai[ijk] + lad[ijktmp]/(dZi_d*J33[ijk]);   //Note dZi_d*J33[ijk] = 1/dz
+    }//end for(ktmp... 
+    if (i==iMin_d && j==jMin_d){
+      printf("cudaDevice_computeLAI(): lai(%d,%d,%d)= %f\n",i,j,k,lai[ijk]);
+    }
+    
+  } // if (within the computational domain...)
+
+} //end cudaDevice_computeLAI
 
 /*----->>>>> __device__ void  cudaDevice_canopySGSTKEwakeprod();  --------------------------------------------------
 */

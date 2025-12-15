@@ -8,6 +8,7 @@
 /* array fields */
 extern __constant__ int canopySelector_d;         /* canopy selector: 0=off, 1=on */
 extern __constant__ int canopySkinOpt_d;          /* canopy selector to use additional skin friction effect on drag coefficient: 0=off, 1=on */
+extern __constant__ int kCanTop_d;                /* Single integer index of highest k-level that includes canopy */
 extern __constant__ float canopy_cd_d;            /* non-dimensional canopy drag coefficient cd */
 extern __constant__ float canopy_lf_d;            /* representative canopy element length scale */
 extern __constant__ float canopy_heat_flux_d;     /* Heat flux coefficient for the canopy layer */
@@ -27,32 +28,41 @@ extern "C" int cuda_canopyDeviceSetup();
 */
 extern "C" int cuda_canopyDeviceCleanup();
 
+__global__ void cudaDevice_setCanopyLAI(float* canopy_lai_d, float* canopy_lad_d, float* J33_d);
+
 /*----->>>>> __global__ void  cudaDevice_hydroCoreCompleteCanopy();  ----------------------------------------
- * Global Kernel for Canopy model
+* Global Kernel for Canopy model
 */
-//__global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d);
-__global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d,
-                                                           float* canopy_lai_d, float dt, int simTime_it); // DME -- PSH
+__global__ void cudaDevice_hydroCoreCompleteCanopy(float* hydroFlds_d, float* hydroRhoInv_d, float* canopy_lad_d, float* hydroFldsFrhs_d, float* canopy_lai_d, float* J33_d, float dt, int simTime_it); 
 
 /*----->>>>> __device__ void  cudaDevice_canopyHeatFlux();  --------------------------------------------------
-*/ // This cuda kernel calculates the forcing term to the momentum equations due to canopy drag
-__device__ void cudaDevice_canopyHeatFlux(float* lai, float* th_Frhs, float dt, int simTime_it);
-
+* This cuda kernel calculates the forcing term to the momentum equations due to canopy drag
+*/
+__device__ void cudaDevice_canopyHeatFlux(float* lai, float* th_Frhs, float* rho, float dt, int simTime_it);
+__device__ void cudaDevice_canopyHeatFlux_JAS(float* lai, float* Frhs_theta, float* rho, float* J33_d, float dt, int simTime_it);
 /*----->>>>> __device__ void  cudaDevice_canopyMomDrag();  --------------------------------------------------
-*/ // This cuda kernel calculates the forcing term to the momentum equations due to canopy drag
+* This cuda kernel calculates the forcing term to the momentum equations due to canopy drag
+*/ 
 __device__ void cudaDevice_canopyMomDrag(float* rhoInv, float* u, float* v, float* w, float* lad, float* Frhs_u, float* Frhs_v, float* Frhs_w);
 
 /*----->>>>> __device__ void  cudaDevice_canopySGSTKEtransfer();  --------------------------------------------------
-*/ // This cuda kernel calculates the forcing term to 1st SGSTKE equation due to canopy drag (transfer to wake scale)
+* This cuda kernel calculates the forcing term to 1st SGSTKE equation due to canopy drag (transfer to wake scale)
+*/
 __device__ void cudaDevice_canopySGSTKEtransfer(float* rhoInv, float* u, float* v, float* w,
                                                 float* lad, float* sgstke, float* Frhs_sgstke, int sign_term);
 
 /*----->>>>> __device__ void  cudaDevice_sgstkeLengthScaleLF();  --------------------------------------------------
-*/ // This cuda kernel assigns canopy_lf representative canopy scale
+* This cuda kernel assigns canopy_lf representative canopy scale
+*/
 __device__ void cudaDevice_sgstkeLengthScaleLF(float* sgstke_ls);
 
+/*----->>>>> __device__ void  cudaDevice_computeLAI();  --------------------------------------------------
+*/
+__device__ void cudaDevice_computeLAI(float* lai, float* lad, float* J33);
+
 /*----->>>>> __device__ void  cudaDevice_canopySGSTKEwakeprod();  --------------------------------------------------
-*/ // This cuda kernel calculates the SGSTKE wake production term
+* This cuda kernel calculates the SGSTKE wake production term
+*/
 __device__ void cudaDevice_canopySGSTKEwakeprod(float* rhoInv, float* u, float* v, float* w,
                                                 float* lad, float* Frhs_sgstke);
 
